@@ -11,6 +11,9 @@ var server = http.createServer(function(req, res){
       case 'POST':
         add(req, res);
         break;
+      case 'DELETE':
+        console.log ("deleting item...");
+        break;
       default:
         badRequest(res);
     }
@@ -33,11 +36,11 @@ function show(res) {
               }).join('')
             + '</ul>'
             + '<form method="post" action="/">'
-            + '<p><input type="text" name="item" /></p>'
+            + '<p><input id="inputText" type="text" name="item" /></p>'
             + '<p><input type="submit" value="Add Item" />'
             + '   <input type="button" value="Delete Item" onclick="deleteItem();"/> </p>'
             + '</form>'
-            + '<script src="/javascripts/todo-client.js" type="text/javascript"</script>'
+            + '<script src="/to-do/todo-client.js" type="text/javascript"</script>'
             + '</body></html>';
 
 
