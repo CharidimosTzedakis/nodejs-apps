@@ -1,14 +1,16 @@
 function deleteItem () {
 
   var item = $("#inputText").val();
-  if (item !='')
+  console.log(1);
+  if (item !='') {
+      console.log(2);
       $.ajax({
-          type: "DELETE",
+          method: "DELETE",
           url: "localhost:3000",
           data: item,
           success: function(msg){
               alert("Data Deleted: " + msg);
           }
       });
-
+  }
 }

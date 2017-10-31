@@ -1,8 +1,12 @@
 var http = require('http');
 var qs = require('querystring');
+var mime = require('mime');
+var path = require('path');
+var fs = require ('fs');
 var items = [];
 
 var server = http.createServer(function(req, res){
+  console.log(req.url);
   if ('/' == req.url) {
     switch (req.method) {
       case 'GET':
@@ -18,12 +22,53 @@ var server = http.createServer(function(req, res){
         badRequest(res);
     }
   }
+  //deliver todo-client.js else show form
+  else if ('/todo-client.js' == req.url) {
+    console.log("test here");
+    filePath = 'to-do/todo-client.js';
+    serveStatic (res, filePath );
+  }
   else {
     notFound(res);
   }
 });
 
 server.listen(3000);
+
+//function to send 404 not found
+function send404 (response) {
+  response.writeHead (404, {'Content-Type': 'text/plain'});
+  response.write ('Error 404: resource not found.');
+  response.end();
+}
+
+//sending the file requested
+function sendFile (response, filePath, fileContents) {
+  response.writeHead(
+    200,
+    {"Content-type": mime.lookup(path.basename(filePath))}
+  );
+  response.end(fileContents);
+}
+
+//function used to serve static files
+function serveStatic (response, absPath)  {
+  fs.exists (absPath, function (exists) {
+    if (exists) {
+      fs.readFile(absPath, function (err, data) {
+        if (err) {
+          send404(response);
+        }
+        else{
+          sendFile(response, absPath, data);
+        }
+      });
+    }
+    else{
+      send404(response);
+    }
+  });
+}
 
 //function showing items
 function show(res) {
@@ -36,11 +81,12 @@ function show(res) {
               }).join('')
             + '</ul>'
             + '<form method="post" action="/">'
-            + '<p><input id="inputText" type="text" name="item" /></p>'
+            + '<p><input id="inputText" type="text" name="item"/> </p>'
             + '<p><input type="submit" value="Add Item" />'
             + '   <input type="button" value="Delete Item" onclick="deleteItem();"/> </p>'
             + '</form>'
-            + '<script src="/to-do/todo-client.js" type="text/javascript"</script>'
+            + '<script src="todo-client.js" type="text/javascript"> </script>'
+            + '<script src="http://code.jquery.com/jquery-3.2.1.min.js" type="text/javascript"> </script>'
             + '</body></html>';
 
 
