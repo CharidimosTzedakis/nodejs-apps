@@ -16,7 +16,7 @@ var server = http.createServer(function(req, res){
         add(req, res);
         break;
       case 'DELETE':
-        console.log ("deleting item...");
+        delItem (req, res);
         break;
       default:
         badRequest(res);
@@ -24,7 +24,6 @@ var server = http.createServer(function(req, res){
   }
   //deliver todo-client.js else show form
   else if ('/todo-client.js' == req.url) {
-    console.log("test here");
     filePath = 'to-do/todo-client.js';
     serveStatic (res, filePath );
   }
@@ -114,5 +113,22 @@ function add(req, res) {
       items.push(obj.item);
     }
       show(res);
+  });
+}
+
+//function for deleting items from todo list
+function delItem (req, res) {
+  console.log ("deleting item...");
+  var body = '';
+  req.setEncoding('utf8');
+  req.on('data', function(chunk){ body += chunk });
+  req.on('end', function(){
+    console.log("Trying to delete item:"+ body);
+    var obj = qs.parse(body);
+    if (items.pop(obj.item) != undefined ){
+      console.log ("Item deleted.");
+      res.statusCode = 200;
+      show(res);
+    }
   });
 }

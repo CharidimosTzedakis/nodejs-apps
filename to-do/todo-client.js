@@ -6,10 +6,11 @@ function deleteItem () {
       console.log(2);
       $.ajax({
           method: "DELETE",
-          url: "localhost:3000",
+          url: "http://localhost:3000",
           data: item,
           success: function(msg){
-              alert("Data Deleted: " + msg);
+            //set innerHTML of the <html> element (documentElement)
+            document.documentElement.innerHTML = msg;
           }
       });
   }
