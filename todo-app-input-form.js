@@ -24,7 +24,7 @@ var server = http.createServer(function(req, res){
   }
   //deliver todo-client.js else show form
   else if ('/todo-client.js' == req.url) {
-    filePath = 'to-do/todo-client.js';
+    filePath = 'todo-app-input-form/todo-client.js';
     serveStatic (res, filePath );
   }
   else {
@@ -124,9 +124,12 @@ function delItem (req, res) {
   req.on('data', function(chunk){ body += chunk });
   req.on('end', function(){
     console.log("Trying to delete item:"+ body);
-    var obj = qs.parse(body);
-    if (items.pop(obj.item) != undefined ){
+    console.log (items);
+    var index = items.indexOf(body);
+    if (index != -1 ){
+      items.splice(index, 1);
       console.log ("Item deleted.");
+      console.log (items);
       res.statusCode = 200;
       show(res);
     }
