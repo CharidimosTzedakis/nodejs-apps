@@ -27,17 +27,17 @@ channel.on('leave', function(id){
 //----shutdown command-----//
 //prevent chat without shutting dowm the server
 channel.on('shutdown', () => {
-  channel.removeAllListeners('broadcast');
   channel.emit('broadcast', '', 'This room has shut down.\n');
+  channel.removeAllListeners('broadcast');
 });
 
 //----startup command-----//
 //prevent chat without shutting dowm the server
 channel.on('start', () => {
-  //for ()
-  //this.on('broadcast', this.subscriptions[id]);
-
-  channel.emit('broadcast', '', 'The server is starting.\n');
+  for (var id in this.subscriptions){
+    this.on('broadcast', this.subscriptions[id]);
+  }
+  channel.emit('broadcast', '', 'The server has started.\n');
 });
 
 
@@ -56,6 +56,7 @@ const server = net.createServer(client => {
   channel.emit('join', id, client);
   client.on('data', data => {
       data = data.toString();
+      console.log(data);
       if (data === '/shutdown\r\n') {
         channel.emit('shutdown');
       }
