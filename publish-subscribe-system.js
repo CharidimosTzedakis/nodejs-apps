@@ -32,13 +32,23 @@ channel.on('shutdown', () => {
 });
 
 //----startup command-----//
-//prevent chat without shutting dowm the server
+//add again listeners to broadcast event
 channel.on('start', () => {
-  for (var id in channel.subscriptions){
-    channel.on('broadcast', channel.subscriptions[id]);
+  if (channel.listenerCount('broadcast') !=0 ){
+    for (var id in channel.subscriptions){
+      channel.on('broadcast', channel.subscriptions[id]);
+    }
+    channel.emit('broadcast', '', 'The server has started.\r\n');
   }
-  channel.emit('broadcast', '', 'The server has started.\r\n');
 });
+
+//---authenticate as admin---//
+
+
+//Admin command: create new private room //
+
+
+//Admin command: create new
 
 
 //Show welcome message with number of listeners
@@ -60,10 +70,12 @@ const server = net.createServer(client => {
       if (data.startsWith('/shutdown')){
          channel.emit('shutdown');
       }
-      if (data.startsWith('/start')){
+      else if (data.startsWith('/start')){
          channel.emit('start');
       }
-      channel.emit('broadcast', id, data);
+      else {
+        channel.emit('broadcast', id, data);
+      }
   });
 
   client.on('close', () => {
