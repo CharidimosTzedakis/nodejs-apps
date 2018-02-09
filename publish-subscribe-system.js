@@ -5,6 +5,9 @@ const channel = new events.EventEmitter();
 channel.clients = {};
 channel.subscriptions = {};
 
+const commands = {'/start':'startup chatserver', '/shutdown', '/login', '/create room',
+                  '/delete room', '/enter room', '/logout', '/admin'};
+
 //adds a listener for the join event that stores a user's client object,
 //allowing the application to send data back to the user
 channel.on('join', function(id, client) {
@@ -34,12 +37,18 @@ channel.on('shutdown', () => {
 //----startup command-----//
 //add again listeners to broadcast event
 channel.on('start', () => {
-  if (channel.listenerCount('broadcast') !=0 ){
+  if (channel.listenerCount('broadcast') == 0 ){
     for (var id in channel.subscriptions){
       channel.on('broadcast', channel.subscriptions[id]);
     }
     channel.emit('broadcast', '', 'The server has started.\r\n');
   }
+});
+
+//----show list of commands----//
+channel.on('showCommands', () => {
+
+  channel.emit('broadcast', '', 'This room has shut down.\r\n');
 });
 
 //---authenticate as admin---//
@@ -53,9 +62,11 @@ channel.on('start', () => {
 
 //Show welcome message with number of listeners
 channel.on('join', function(id, client) {
-  const welcome = `Welcome!\r\nGuests online: ${this.listeners('broadcast').length}
+  const welcome = `Welcome!\r\n
+                   Guests online: ${this.listeners('broadcast').length}\r\n
+                   To print list of commands type: /?\r\n
                   `;
-  client.write(`${welcome}\r\n`);
+  client.write(`${welcome}`);
 });
 
 //set max number of listeners
@@ -67,11 +78,15 @@ const server = net.createServer(client => {
 
   client.on('data', data => {
       data = data.toString();
+      //---process the string here and remove /r/n and whatever left
       if (data.startsWith('/shutdown')){
          channel.emit('shutdown');
       }
       else if (data.startsWith('/start')){
          channel.emit('start');
+      }
+      else if (data.startsWith('/?')){
+         channel.emit('showCommands');
       }
       else {
         channel.emit('broadcast', id, data);
