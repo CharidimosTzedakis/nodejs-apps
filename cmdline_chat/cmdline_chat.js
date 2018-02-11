@@ -1,7 +1,12 @@
 const events = require('events');
 const net = require('net');
 const sqlite3 = require('sqlite3').verbose();
-const chatsrv_db = new sqlite3.Database('cmdline_chat');
+const chatsrv_db = new sqlite3.Database('cmdline_chat',  sqlite3.OPEN_READWRITE, (err)=> {
+                        if (err) {
+                          console.error(err.message);
+                        }
+                        console.log('Connected to the cmdline database.');
+                  });
 
 const channel = new events.EventEmitter();
 channel.clients = {};
@@ -118,3 +123,11 @@ const server = net.createServer(client => {
 });
 //'192.168.1.5'
 server.listen(8888);
+
+process.on('exit', (code) => {
+  console.log(`About to exit with code: ${code}`);
+});
+
+process.on('SIGINT', () => {
+  console.log('Received SIGINT.  Press Control-D to exit.');
+});
