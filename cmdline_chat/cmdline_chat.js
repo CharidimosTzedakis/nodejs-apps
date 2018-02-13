@@ -14,8 +14,8 @@ channel.subscriptions = {};
 
 const commands = {"/start":"startup chat room (by room creator)",
                   "/shutdown":"shutdown chat room (by room creator)",
-                  "/signup":"create user account",
-                  "/login":"login as user",
+                  "/signup username password":"create user account with username and password",
+                  "/login username password":"login as user",
                   "/logout":"logout from your account",
                   "/create room":"create chat room",
                   "/delete room":"delete chat room",
@@ -71,9 +71,27 @@ channel.on('showCommands', () => {
 });
 
 //----signup procedure---------//
-channel.on('signup', () => {
+channel.on('signup', (commandData) => {
+  //process commandData commandData string
+  const arr = commandData.split(",");
+  if (arr.length >2){
+    const usrname = arr[1];
+    const password = arr[2];
+    //check if username exists
 
-  channel.emit('broadcast', '', 'commandListString+"\r\n\r\n');
+
+    //if not, create user and store in data base
+    //if it exists print informing message
+
+    //print username in the prompt
+
+  }
+  else if (arr.length == 2) {
+    channel.emit('broadcast', '', 'Please also enter password. \r\n');
+  }
+  else {
+    channel.emit('broadcast', '', 'Please enter username. \r\n');
+  }
 });
 
 //User command: create new room/private room //
@@ -110,7 +128,7 @@ const server = net.createServer(client => {
          channel.emit('showCommands');
       }
       else if (data.startsWith('/signup')){
-         channel.emit('signup');
+         channel.emit('signup', data);
       }
       else {
         channel.emit('broadcast', id, data);
@@ -128,18 +146,19 @@ process.on('exit', (code) => {
   console.log(`About to exit with code: ${code}`);
 });
 
-//shutting down process when receiving Ctrl+C
+//shutting down process gracefully when receiving Ctrl+C
+//closing server, db connection and tcp connections
 process.on('SIGINT', () => {
   console.log('Received SIGINT: shutting down process...');
   channel.emit('broadcast', '', 'Server shutting down...\r\n');
-  db.close((err) => {
+  server.close();
+  chatsrv_db.close((err) => {
     if (err) {
       console.error(err.message);
     }
     console.log('Closed cmdline database connection.');
   });
-  for (var i in clients) {
+  for (var i in channel.clients) {
     channel.clients[i].destroy();
   }
-  //server.close();
 });
