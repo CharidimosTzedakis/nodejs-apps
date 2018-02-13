@@ -128,6 +128,18 @@ process.on('exit', (code) => {
   console.log(`About to exit with code: ${code}`);
 });
 
+//shutting down process when receiving Ctrl+C
 process.on('SIGINT', () => {
-  console.log('Received SIGINT.  Press Control-D to exit.');
+  console.log('Received SIGINT: shutting down process...');
+  channel.emit('broadcast', '', 'Server shutting down...\r\n');
+  db.close((err) => {
+    if (err) {
+      console.error(err.message);
+    }
+    console.log('Closed cmdline database connection.');
+  });
+  for (var i in clients) {
+    channel.clients[i].destroy();
+  }
+  //server.close();
 });
