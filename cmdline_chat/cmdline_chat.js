@@ -1,6 +1,7 @@
 const events = require('events');
 const net = require('net');
 const sqlite3 = require('sqlite3').verbose();
+const sha1 = require('sha1');
 const chatsrv_db = new sqlite3.Database('cmdline_chat',  sqlite3.OPEN_READWRITE, (err)=> {
                         if (err) {
                           console.error(err.message);
@@ -75,10 +76,22 @@ channel.on('signup', (commandData) => {
   //process commandData commandData string
   const arr = commandData.split(",");
   if (arr.length >2){
-    const usrname = arr[1];
+    const username = arr[1];
     const password = arr[2];
     //check if username exists
+    const sqlUserQuery = `SELECT username u, password p
+                          FROM users
+                          WHERE username  = ?`;
 
+    //first row only
+    db.get(sqlUserQuery, [1], (err, row) => {
+      if (err) {
+        return console.error(err.message);
+      }
+      return row
+        ? console.log(row.id, row.name)
+        : console.log(`No playlist found with the id ${playlistId}`);
+    });
 
     //if not, create user and store in data base
     //if it exists print informing message
