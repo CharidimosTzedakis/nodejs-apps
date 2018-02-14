@@ -74,7 +74,7 @@ channel.on('showCommands', () => {
 //----signup procedure---------//
 channel.on('signup', (commandData) => {
   //process commandData commandData string
-  const arr = commandData.split(",");
+  const arr = commandData.split(" ");
   if (arr.length >2){
     const username = arr[1];
     const password = arr[2];
@@ -84,13 +84,13 @@ channel.on('signup', (commandData) => {
                           WHERE username  = ?`;
 
     //first row only
-    db.get(sqlUserQuery, [username], (err, row) => {
+    chatsrv_db.get(sqlUserQuery, [username], (err, row) => {
       if (err) {
         return console.error(err.message);
       }
       return row
-        ? console.log(row.id, row.name)
-        : console.log(`No playlist found with the username ${username}`);
+        ? console.log(row.u, row.p)
+        : console.log(`No user found with the username ${username}`);
     });
 
     //if not, create user and store in data base
@@ -130,7 +130,11 @@ const server = net.createServer(client => {
 
   client.on('data', data => {
       data = data.toString();
-      //---process the string here and remove /r/n and whatever left
+      //---process the string here and remove /n
+      let lastChar = data.substr(data.length - 1);
+      if (lastChar === '\n')
+        data = data.slice(0, -1);
+
       if (data.startsWith('/shutdown')){
          channel.emit('shutdown');
       }
@@ -168,10 +172,11 @@ process.on('SIGINT', () => {
   chatsrv_db.close((err) => {
     if (err) {
       console.error(err.message);
+      process.exit(1);
     }
     console.log('Closed cmdline database connection.');
+    for (var i in channel.clients) {
+      channel.clients[i].destroy();
+    }
   });
-  for (var i in channel.clients) {
-    channel.clients[i].destroy();
-  }
 });
