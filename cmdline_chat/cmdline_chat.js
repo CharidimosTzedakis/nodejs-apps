@@ -84,13 +84,13 @@ channel.on('signup', (commandData) => {
                           WHERE username  = ?`;
 
     //first row only
-    db.get(sqlUserQuery, [1], (err, row) => {
+    db.get(sqlUserQuery, [username], (err, row) => {
       if (err) {
         return console.error(err.message);
       }
       return row
         ? console.log(row.id, row.name)
-        : console.log(`No playlist found with the id ${playlistId}`);
+        : console.log(`No playlist found with the username ${username}`);
     });
 
     //if not, create user and store in data base
