@@ -83,21 +83,33 @@ channel.on('signup', (commandData) => {
                           FROM users
                           WHERE username  = ?`;
 
-    //first row only
-    chatsrv_db.get(sqlUserQuery, [username], (err, row) => {
-      if (err) {
-        return console.error(err.message);
-      }
-      return row
-        ? console.log(row.u, row.p)
-        : console.log(`No user found with the username ${username}`);
+    const sqlUserInsert = `INSERT INTO users(username, password, admin)
+                           VALUES(?, ?, ?)`;
+
+    const userQueryPromise = new Promise ( (resolve, reject) => {
+        chatsrv_db.get(sqlUserQuery, [username], (err, row) => {
+          if (err) reject(err.message);
+          resolve(row);
+        });
     });
 
-    //if not, create user and store in data base
-    //if it exists print informing message
-
-    //print username in the prompt
-
+    userQueryPromise.then(
+                      (row) =>{
+                        if (row ===  undefined){
+                          //store in data base username and password
+                          chatsrv_db.run(sqlUserInsert, [username, password, 0], (err) => {
+                            if (err) return console.log(err.message);
+                            console.log(`User ${username} created.`);
+                          });
+                        }
+                        else {
+                          console.log(`User already exists with the username ${username}`);
+                        }
+                    })
+                    .catch(
+                      (reason) => {
+                        console.error(reason);
+                    });
   }
   else if (arr.length == 2) {
     channel.emit('broadcast', '', 'Please also enter password. \r\n');
@@ -172,7 +184,6 @@ process.on('SIGINT', () => {
   chatsrv_db.close((err) => {
     if (err) {
       console.error(err.message);
-      process.exit(1);
     }
     console.log('Closed cmdline database connection.');
     for (var i in channel.clients) {
