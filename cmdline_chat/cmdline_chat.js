@@ -71,7 +71,7 @@ channel.on('showCommands', () => {
   channel.emit('broadcast', '', commandListString+"\r\n\r\n");
 });
 
-//----signup procedure---------//
+//----signup procedure-------------------------------//
 channel.on('signup', (commandData) => {
   //process commandData commandData string
   const arr = commandData.split(" ");
@@ -104,6 +104,47 @@ channel.on('signup', (commandData) => {
                         }
                         else {
                           console.log(`User already exists with the username ${username}`);
+                        }
+                    })
+                    .catch(
+                      (reason) => {
+                        console.error(reason);
+                    });
+  }
+  else if (arr.length == 2) {
+    channel.emit('broadcast', '', 'Please also enter password. \r\n');
+  }
+  else {
+    channel.emit('broadcast', '', 'Please enter username. \r\n');
+  }
+});
+
+//----login procedure-----------------------------//
+channel.on('login', (commandData) => {
+  //process commandData commandData string
+  const arr = commandData.split(" ");
+  if (arr.length >2){
+    const username = arr[1];
+    const password = arr[2];
+    //check if username exists
+    const sqlUserQuery = `SELECT username u, password p
+                          FROM users
+                          WHERE username  = ?`;
+
+    const userQueryPromise = new Promise ( (resolve, reject) => {
+        chatsrv_db.get(sqlUserQuery, [username], (err, row) => {
+          if (err) reject(err.message);
+          resolve(row);
+        });
+    });
+
+    userQueryPromise.then(
+                      (row) =>{
+                        if (row ===  undefined){
+                          console.log(`${username} does not exist.`);
+                        else {
+
+                          
                         }
                     })
                     .catch(
