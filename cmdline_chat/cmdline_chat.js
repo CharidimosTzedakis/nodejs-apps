@@ -10,8 +10,10 @@ const chatsrv_db = new sqlite3.Database('cmdline_chat',  sqlite3.OPEN_READWRITE,
                   });
 
 const channel = new events.EventEmitter();
-channel.clients = {};
-channel.subscriptions = {};
+const roomUsersNumber = 10;
+channel.clients = {};              // {key:value}--> {id:client}
+channel.subscriptions = {};        // {key:value}--> {id:subscription function}
+channel.usernames = {};            // {key:value}--> {id:username}
 
 const commands = {"/start":"startup chat room (by room creator)",
                   "/shutdown":"shutdown chat room (by room creator)",
@@ -22,33 +24,61 @@ const commands = {"/start":"startup chat room (by room creator)",
                   "/delete room":"delete chat room",
                   "/enter room":"enter a chat room" };
 
-//adds a listener for the join event that stores a user's client object,
-//allowing the application to send data back to the user
-channel.on('join', function(id, client) {
-  this.clients[id] = client;
-  this.subscriptions[id] = (senderId, message) => {
+//---------------joining procedure--------------------------------------------//
+channel.on('join', (id, client) => {
+  channel.clients[id] = client;
+  channel.subscriptions[id] = (senderId, message) => {
       if (id != senderId) {
-        this.clients[id].write(message);
+        let messageSent = message + `${channel.usernames[id]}>>`;
+        channel.clients[id].write(messageSent);
       }
   };
-  this.on('broadcast', this.subscriptions[id]);
+  //find "guest" username that is not used
+  let initialUsername = "Guest";
+  let usernameExists = true;
+  let i=1;
+
+  while ((i<roomUsersNumber+1) && (usernameExists)) {
+    initialUsername = "Guest";
+    initialUsername = initialUsername + i.toString(); //checking Guest1, Guest2,...
+    usernameExists = false;
+    for (var id_indx in  channel.usernames){
+        if (initialUsername === channel.usernames[id_indx] ){
+          usernameExists = true;
+          break;
+        }
+    }
+    i++;
+  }
+  channel.usernames[id] = initialUsername;
+  channel.on('broadcast', channel.subscriptions[id]);
+  channel.on('messageToUser', (id, message) =>{
+      let messageSent = message + `${channel.usernames[id]}>>`;
+      channel.clients[id].write(messageSent);
+  });
+
+  //Notify user and the other participants for the joining
+  const welcome =`Welcome ${initialUsername}!\r\nGuests online: ${channel.listeners('broadcast').length}\r\nTo print list of commands type: /?\r\n\r\n`;
+  channel.emit ('messageToUser', id, welcome);
+  channel.emit('broadcast', id, `${initialUsername} entered the room.\r\n`);
+
 });
 
 //adds a listener for the leave event that removes broadcast listener for
 //a specific client
-channel.on('leave', function(id){
-  channel.removeListener('broadcast', this.subscriptions[id]);
+channel.on('leave', (id) => {
+  channel.removeListener('broadcast', channel.subscriptions[id]);
   channel.emit('broadcast', id, `${id} has left the chatroom.\r\n`);
 });
 
-//----shutdown command-----//
+//----shutdown command--------------------------------------------------------//
 //prevent chat without shutting dowm the server
 channel.on('shutdown', () => {
   channel.emit('broadcast', '', 'This room has shut down.\r\n');
   channel.removeAllListeners('broadcast');
 });
 
-//----startup command-----//
+//----startup command---------------------------------------------------------//
 //add again listeners to broadcast event
 channel.on('start', () => {
   if (channel.listenerCount('broadcast') == 0 ){
@@ -62,7 +92,7 @@ channel.on('start', () => {
   }
 });
 
-//----show list of commands----//
+//----show list of commands---------------------------------------------------//
 channel.on('showCommands', () => {
   let commandListString ='';
   for (var cmd in commands){
@@ -71,7 +101,7 @@ channel.on('showCommands', () => {
   channel.emit('broadcast', '', commandListString+"\r\n\r\n");
 });
 
-//----signup procedure-------------------------------//
+//----signup procedure--------------------------------------------------------//
 channel.on('signup', (commandData) => {
   //process commandData commandData string
   const arr = commandData.split(" ");
@@ -119,7 +149,7 @@ channel.on('signup', (commandData) => {
   }
 });
 
-//----login procedure-----------------------------//
+//----login procedure---------------------------------------------------------//
 channel.on('login', (commandData) => {
   //process commandData commandData string
   const arr = commandData.split(" ");
@@ -140,11 +170,12 @@ channel.on('login', (commandData) => {
 
     userQueryPromise.then(
                       (row) =>{
-                        if (row ===  undefined){
-                          console.log(`${username} does not exist.`);
-                        else {
+                        if (row ===  undefined) {
 
-                          
+                          channel.emit('broadcast', '', 'Welcome ${username}. \r\n');
+                        }
+                        else {
+                          console.log(`${username} does not exist.`);
                         }
                     })
                     .catch(
@@ -168,17 +199,12 @@ channel.on('login', (commandData) => {
 //Admin command: create new
 
 
-//Show welcome message with number of listeners
-channel.on('join', (id, client) => {
-  const welcome =`Welcome!\r\nGuests online: ${channel.listeners('broadcast').length}\r\nTo print list of commands type: /?\r\n\r\n`;
-  client.write(`${welcome}`);
-});
-
 //set max number of listeners
 channel.setMaxListeners(50);
 
-const server = net.createServer(client => {
+const server = net.createServer( (client) => {
   const id = `${client.remoteAddress}:${client.remotePort}`;
+  console.log(`Client with id ${id} connected.`);
   channel.emit('join', id, client);
 
   client.on('data', data => {
@@ -210,7 +236,7 @@ const server = net.createServer(client => {
   });
 });
 //'192.168.1.5'
-server.listen(8888);
+server.listen(8888, '192.168.1.5');
 
 process.on('exit', (code) => {
   console.log(`About to exit with code: ${code}`);
