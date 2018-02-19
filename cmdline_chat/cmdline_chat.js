@@ -20,16 +20,16 @@ const commands = {"/start":"startup chat room (by room creator)",
                   "/signup username password":"create user account with username and password",
                   "/login username password":"login as user",
                   "/logout":"logout from your account",
-                  "/create room":"create chat room",
-                  "/delete room":"delete chat room",
-                  "/enter room":"enter a chat room" };
+                  "/create room name password":"create chat room",
+                  "/delete room name password":"delete chat room",
+                  "/enter room name password":"enter a chat room" };
 
 //---------------joining procedure--------------------------------------------//
 channel.on('join', (id, client) => {
   channel.clients[id] = client;
   channel.subscriptions[id] = (senderId, message) => {
       if (id != senderId) {
-        let messageSent = message + `${channel.usernames[id]}>>`;
+        let messageSent = '\r\n' +`${channel.usernames[senderId]}:` + message + '\r\n' + `${channel.usernames[id]}>>`;
         channel.clients[id].write(messageSent);
       }
   };
@@ -52,9 +52,14 @@ channel.on('join', (id, client) => {
   }
   channel.usernames[id] = initialUsername;
   channel.on('broadcast', channel.subscriptions[id]);
-  channel.on('messageToUser', (id, message) =>{
-      let messageSent = message + `${channel.usernames[id]}>>`;
+  channel.on('messageToUser', (senderId, message) =>{
+    if (id == senderId) {
+      let messageSent = '\r\n' + message +'\r\n'+ `${channel.usernames[id]}>>`;
+      if (message ==='userPrompt'){
+         messageSent = `${channel.usernames[id]}>>`;
+      }
       channel.clients[id].write(messageSent);
+    }
   });
 
   //Notify user and the other participants for the joining
@@ -210,9 +215,18 @@ const server = net.createServer( (client) => {
   client.on('data', data => {
       data = data.toString();
       //---process the string here and remove /n
+      //WINDOWS CASE CR LF
+      let lastChars = data.substr(data.length - 2);
+      if (lastChars === '\r\n')
+          data = data.slice(0, -2);
+
+      //UNIX case LF
       let lastChar = data.substr(data.length - 1);
       if (lastChar === '\n')
-        data = data.slice(0, -1);
+          data = data.slice(0, -1);
+
+      if ( data.length === 0 )
+        return;
 
       if (data.startsWith('/shutdown')){
          channel.emit('shutdown');
@@ -228,6 +242,7 @@ const server = net.createServer( (client) => {
       }
       else {
         channel.emit('broadcast', id, data);
+        channel.emit ('messageToUser', id, 'userPrompt');
       }
   });
 
