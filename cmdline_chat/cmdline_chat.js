@@ -14,6 +14,7 @@ const roomUsersNumber = 10;
 channel.clients = {};              // {key:value}--> {id:client}
 channel.subscriptions = {};        // {key:value}--> {id:subscription function}
 channel.usernames = {};            // {key:value}--> {id:username}
+channel.loggedInUsers = {};        // {key:value}--> {id:boolean}
 
 const commands = {"/start":"startup chat room (by room creator)",
                   "/shutdown":"shutdown chat room (by room creator)",
@@ -54,7 +55,7 @@ channel.on('join', (id, client) => {
   channel.on('broadcast', channel.subscriptions[id]);
   channel.on('messageToUser', (senderId, message) =>{
     if (id == senderId) {
-      let messageSent = '\r\n' + message +'\r\n'+ `${channel.usernames[id]}>>`;
+      let messageSent = message +'\r\n'+ `${channel.usernames[id]}>>`;
       if (message ==='userPrompt'){
          messageSent = `${channel.usernames[id]}>>`;
       }
@@ -63,7 +64,7 @@ channel.on('join', (id, client) => {
   });
 
   //Notify user and the other participants for the joining
-  const welcome =`Welcome ${initialUsername}!\r\nGuests online: ${channel.listeners('broadcast').length}\r\nTo print list of commands type: /?\r\n\r\n`;
+  const welcome =`Welcome to the Main Lobby, ${initialUsername}!\r\nGuests online: ${channel.listeners('broadcast').length}\r\nTo print list of commands type: /?\r\n\r\n`;
   channel.emit ('messageToUser', id, welcome);
   channel.emit('broadcast', id, `${initialUsername} entered the room.\r\n`);
 
@@ -73,7 +74,7 @@ channel.on('join', (id, client) => {
 //a specific client
 channel.on('leave', (id) => {
   channel.removeListener('broadcast', channel.subscriptions[id]);
-  channel.emit('broadcast', id, `${id} has left the chatroom.\r\n`);
+  channel.emit('broadcast', id, `${channel.usernames[id]} has left the chatroom.\r\n`);
 });
 
 //----shutdown command--------------------------------------------------------//
@@ -98,17 +99,22 @@ channel.on('start', () => {
 });
 
 //----show list of commands---------------------------------------------------//
-channel.on('showCommands', () => {
+channel.on('showCommands', (id) => {
   let commandListString ='';
   for (var cmd in commands){
     commandListString += cmd + ' --> ' + commands[cmd] + "\r\n";
   }
-  channel.emit('broadcast', '', commandListString+"\r\n\r\n");
+  channel.emit('messageToUser', id, commandListString+"\r\n");
 });
 
 //----signup procedure--------------------------------------------------------//
-channel.on('signup', (commandData) => {
-  //process commandData commandData string
+channel.on('signup', (id, commandData) => {
+
+  if (channel.loggedInUsers[id] === 1){
+    channel.emit('messageToUser', id, `You are already a signed up user.`);
+    return;
+  }
+
   const arr = commandData.split(" ");
   if (arr.length >2){
     const username = arr[1];
@@ -134,11 +140,11 @@ channel.on('signup', (commandData) => {
                           //store in data base username and password
                           chatsrv_db.run(sqlUserInsert, [username, password, 0], (err) => {
                             if (err) return console.log(err.message);
-                            console.log(`User ${username} created.`);
+                            channel.emit('messageToUser', id, `User ${username} created.`);
                           });
                         }
                         else {
-                          console.log(`User already exists with the username ${username}`);
+                          channel.emit('messageToUser', id, `${username} already exists.`);
                         }
                     })
                     .catch(
@@ -147,17 +153,23 @@ channel.on('signup', (commandData) => {
                     });
   }
   else if (arr.length == 2) {
-    channel.emit('broadcast', '', 'Please also enter password. \r\n');
+    channel.emit('messageToUser', id, 'Please also enter password.');
   }
   else {
-    channel.emit('broadcast', '', 'Please enter username. \r\n');
+    channel.emit('messageToUser', id, 'Please enter username.');
   }
 });
 
 //----login procedure---------------------------------------------------------//
-channel.on('login', (commandData) => {
+channel.on('login', (id, commandData) => {
   //process commandData commandData string
   const arr = commandData.split(" ");
+
+  if (channel.loggedInUsers[id] === 1){
+    channel.emit('messageToUser', id, `You have already logged in.`);
+    return;
+  }
+
   if (arr.length >2){
     const username = arr[1];
     const password = arr[2];
@@ -175,12 +187,24 @@ channel.on('login', (commandData) => {
 
     userQueryPromise.then(
                       (row) =>{
-                        if (row ===  undefined) {
+                        //check to see if username has logged in from other user
+                        for (var id_indx in channel.usernames){
+                          if ( channel.usernames[id_indx] === username){
+                            channel.emit('messageToUser', id, `${username} Logged in from different location.`);
+                            return;
+                          }
+                        }
 
-                          channel.emit('broadcast', '', 'Welcome ${username}. \r\n');
+                        if (row ===  undefined) {
+                          channel.emit('messageToUser', id, `${username} does not exist.`);
+                        }
+                        else if (sha1(password) === row.p ) {
+                          channel.usernames[id] = username;
+                          channel.loggedInUsers[id] = 1;
+                          channel.emit('messageToUser', id, `Welcome ${username}.`);
                         }
                         else {
-                          console.log(`${username} does not exist.`);
+                          channel.emit('messageToUser', id, `${username} Wrong password.`);
                         }
                     })
                     .catch(
@@ -189,10 +213,10 @@ channel.on('login', (commandData) => {
                     });
   }
   else if (arr.length == 2) {
-    channel.emit('broadcast', '', 'Please also enter password. \r\n');
+    channel.emit('messageToUser', id, 'Please also enter password.');
   }
   else {
-    channel.emit('broadcast', '', 'Please enter username. \r\n');
+    channel.emit('messageToUser', id, 'Please enter username.');
   }
 });
 
@@ -220,7 +244,7 @@ const server = net.createServer( (client) => {
       if (lastChars === '\r\n')
           data = data.slice(0, -2);
 
-      //UNIX case LF
+      //UNIX case only LF
       let lastChar = data.substr(data.length - 1);
       if (lastChar === '\n')
           data = data.slice(0, -1);
@@ -235,10 +259,13 @@ const server = net.createServer( (client) => {
          channel.emit('start');
       }
       else if (data.startsWith('/?')){
-         channel.emit('showCommands');
+         channel.emit('showCommands',id);
       }
       else if (data.startsWith('/signup')){
-         channel.emit('signup', data);
+         channel.emit('signup', id, data);
+      }
+      else if (data.startsWith('/login')){
+         channel.emit('login', id, data);
       }
       else {
         channel.emit('broadcast', id, data);
@@ -250,7 +277,9 @@ const server = net.createServer( (client) => {
     channel.emit('leave', id);
   });
 });
-//'192.168.1.5'
+
+//localhost:
+//server.listen(8888);
 server.listen(8888, '192.168.1.5');
 
 process.on('exit', (code) => {
