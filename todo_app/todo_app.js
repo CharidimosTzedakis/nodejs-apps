@@ -24,7 +24,7 @@ var server = http.createServer(function(req, res){
   }
   //deliver todo-client.js else show form
   else if ('/todo-client.js' == req.url) {
-    filePath = 'todo-app-input-form/todo-client.js';
+    filePath = 'todo_app_client/todo_client.js';
     serveStatic (res, filePath );
   }
   else {
